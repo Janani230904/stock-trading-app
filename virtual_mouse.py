@@ -1,32 +1,45 @@
 import cv2
-from cvzone.HandTrackingModule import HandDetector
 import pyautogui
+# We import the internal path directly to bypass the 'solutions' error
+try:
+    import mediapipe.python.solutions.hands as mp_hands
+    import mediapipe.python.solutions.drawing_utils as mp_drawing
+except ImportError:
+    # If that fails, we try the alternative internal path
+    from mediapipe.python.solutions import hands as mp_hands
+    from mediapipe.python.solutions import drawing_utils as mp_drawing
+
+# Initialize using the direct imports
+detector = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7)
+screen_w, screen_h = pyautogui.size()
 
 cap = cv2.VideoCapture(0)
-detector = HandDetector(detectionCon=0.8, maxHands=1)
-screen_width, screen_height = pyautogui.size()
 
 while True:
     success, img = cap.read()
-    img = cv2.flip(img, 1) # Flip for mirror effect
-    hands, img = detector.findHands(img) # This draws the dots for you automatically
+    if not success: break
+    
+    img = cv2.flip(img, 1)
+    imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    results = detector.process(imgRGB)
+    
+    if results.multi_hand_landmarks:
+        for handLms in results.multi_hand_landmarks:
+            # Landmark 8 is the Index Finger Tip
+            index_finger = handLms.landmark[8]
+            
+            # Map coordinates to screen
+            cursor_x = int(index_finger.x * screen_w)
+            cursor_y = int(index_finger.y * screen_h)
+            
+            # Move mouse (setting tween=0 makes it instant)
+            pyautogui.moveTo(cursor_x, cursor_y, _pause=False)
+            
+            # Draw a circle on your finger in the preview
+            h, w, _ = img.shape
+            cv2.circle(img, (int(index_finger.x * w), int(index_finger.y * h)), 10, (0, 255, 0), cv2.FILLED)
 
-    if hands:
-        # Get the first hand detected
-        lmList = hands[0]['lmList'] # List of 21 Landmark points
-        
-        # Landmark 8 is the Index Finger Tip
-        # lmList[8] gives us (x, y, z)
-        x1, y1 = lmList[8][0], lmList[8][1]
-
-        # Map camera coordinates to screen size
-        # We use a smaller range [100, 500] to make it easier to reach corners
-        mouse_x = cv2.np.interp(x1, [100, 540], [0, screen_width])
-        mouse_y = cv2.np.interp(y1, [100, 380], [0, screen_height])
-
-        pyautogui.moveTo(mouse_x, mouse_y)
-
-    cv2.imshow("Janani's AI Mouse", img)
+    cv2.imshow("Hand Mouse Test", img)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
