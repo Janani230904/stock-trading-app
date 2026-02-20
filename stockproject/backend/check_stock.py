@@ -35,7 +35,7 @@ try:
         print(f"❌ Low Balance. You need ${price - current_balance:.2f} more.")
 
 except Exception:
-    print("❌ Could not find that stock. Check the spelling!")
+    print(" Could not find that stock. Check the spelling!")
 
 cursor.close()
 db.close()
